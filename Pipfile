@@ -15,6 +15,7 @@ cors = "*"
 flask-cors = "*"
 authlib = "*"
 flask-mail = "*"
+flask-bcrypt = "*"
 
 [scripts]
 dev="flask run"
