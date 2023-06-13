@@ -1,10 +1,11 @@
-from flask import  url_for, redirect
+from flask import Blueprint,  url_for, redirect
 from authlib.integrations.flask_client import OAuth
 
+user_bp = Blueprint('user', __name__)
 
-oauth = OAuth(app)
+oauth = OAuth()
 
-@app.route('/google/')
+@user_bp.route('/google/')
 def google():
     # Google Oauth Config
     # Get client_id and client_secret from environment variables
@@ -28,7 +29,7 @@ def google():
     return oauth.google.authorize_redirect(redirect_uri)
 
 
-@app.route('/google/auth/')
+@user_bp.route('/google/auth/')
 def google_auth():
     token = oauth.google.authorize_access_token()
     user = oauth.google.parse_id_token(token)

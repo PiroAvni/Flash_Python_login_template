@@ -1,7 +1,7 @@
 from app import db
-from flask import jsonify, request
+from flask import jsonify, request, make_response
 from flask_login import login_user, logout_user, current_user, login_required, LoginManager
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import create_access_token, set_access_cookies, unset_jwt_cookies, jwt_required
 from flask_bcrypt import Bcrypt
 from app.models.User import User
 
@@ -54,10 +54,8 @@ def register():
         elif len(email) < 4:
             return jsonify(message='Email is invalid.'), 400
         else:
-
             # Hash the password
-            hashed_password = bcrypt.generate_password_hash(
-                password).decode('utf-8')
+            hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
 
             # Create a new user instance
             new_user = User(name=name, email=email, password=hashed_password)
@@ -88,19 +86,27 @@ def login():
     # Generate an access token
     access_token = create_access_token(identity=user.id)
 
-    return jsonify(access_token=access_token, email=user.email, name=user.name), 200
+    # Create a response with the access token and set the cookie
+    response = make_response(jsonify(access_token=access_token, name=user.name, email=user.email))
+    response.set_cookie('access_token', access_token)
+
+    return response, 200
 
 
-@login_required
 def logout():
-    # Logout the user
-    logout_user()
-    return jsonify(message='User logged out successfully'), 200
+    if current_user.is_authenticated:
+        # Logout the user
+        logout_user()
+        # Clear JWT cookies
+        response = make_response(jsonify(message='User logged out successfully'))
+        unset_jwt_cookies(response)
+        return response
+    else:
+        return jsonify(message='User is not logged in'), 401
 
 
 @login_required
 def get_user_profile():
-
     # Assuming the user ID is passed in the request headers
     user_id = request.headers.get('user_id')
     # Fetch user from the database based on the user ID
@@ -118,7 +124,6 @@ def get_user_profile():
 
 
 def update_user_profile():
-    
     # Assuming the user ID is passed in the request headers
     user_id = request.headers.get('user_id')
     # Fetch user from the database based on the user ID
@@ -141,36 +146,6 @@ def update_user_profile():
         })
     else:
         return jsonify(error='User not found'), 404
-
-# @login_required
-# def profile():
-#     return jsonify(name=current_user.name, email=current_user.email)
-
-
-# @login_required
-# def update_profile():
-#     data = request.get_json()
-#     name = data.get('name')
-#     email = data.get('email')
-#     password = data.get('password')
-
-#     if not name or not email or not password:
-#         return jsonify(message='name, email, and password are required'), 400
-
-#     user = User.query.get(current_user.id)
-
-#     # Update the name and email
-#     user.name = name
-#     user.email = email
-
-#     # Update the password if provided
-#     if password:
-#         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-#         user.password = hashed_password
-
-#     db.session.commit()
-
-#     return jsonify(message='Profile updated successfully'), 200
 
 
 def recover_password():
@@ -209,3 +184,4 @@ def reset_password():
     user.reset_password(new_password)
 
     return jsonify(message='Password reset successful'), 200
+
